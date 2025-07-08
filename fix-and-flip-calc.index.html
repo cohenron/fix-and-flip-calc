@@ -1,0 +1,208 @@
+<!DOCTYPE html>
+<html lang="en" class="dark">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Fix and Flip Calculator</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      darkMode: 'class'
+    }
+  </script>
+  <style>
+    body {
+      font-family: 'Inter', sans-serif;
+      background-color: #f0f2f5;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      min-height: 100vh;
+      padding: 20px;
+      box-sizing: border-box;
+    }
+    .container {
+      max-width: 900px;
+      width: 100%;
+      background-color: #ffffff;
+      border-radius: 12px;
+      box-shadow: 0 10px 25px rgba(0, 0, 0, 0.1);
+      overflow: hidden;
+      display: flex;
+      flex-direction: column;
+    }
+    @media (min-width: 768px) {
+      .container {
+        flex-direction: row;
+      }
+    }
+    .input-section, .output-section {
+      padding: 32px;
+    }
+    .input-section {
+      flex: 1;
+      background-color: #f9fafb;
+      border-right: 1px solid #e5e7eb;
+    }
+    @media (max-width: 767px) {
+      .input-section {
+        border-right: none;
+        border-bottom: 1px solid #e5e7eb;
+      }
+    }
+    .output-section {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+      overflow: auto;
+    }
+  </style>
+</head>
+<body class="dark:bg-gray-900 dark:text-white">
+  <div class="container">
+    <div class="input-section">
+      <div class="flex justify-between items-center mb-4">
+        <h2 class="text-3xl font-extrabold text-gray-900 dark:text-white">Fix & Flip Deal Analyzer</h2>
+        <button id="darkToggle" class="ml-2 px-3 py-1 rounded-md border text-sm">Toggle Dark Mode</button>
+      </div>
+
+      <div class="mb-4">
+        <label for="purchasePrice">Purchase Price ($)</label>
+        <input type="number" id="purchasePrice" class="w-full" value="200000" />
+      </div>
+      <div class="mb-4">
+        <label for="rehabCost">Estimated Rehab Cost ($)</label>
+        <input type="number" id="rehabCost" class="w-full" value="40000" />
+      </div>
+      <div class="mb-4">
+        <label for="holdingCost">Monthly Holding Costs ($)</label>
+        <input type="number" id="holdingCost" class="w-full" value="500" />
+      </div>
+      <div class="mb-4">
+        <label for="holdingMonths">Holding Period (Months)</label>
+        <input type="number" id="holdingMonths" class="w-full" value="6" />
+      </div>
+      <div class="mb-4">
+        <label for="loanAmount">Loan Amount ($)</label>
+        <input type="number" id="loanAmount" class="w-full" value="150000" />
+      </div>
+      <div class="mb-4">
+        <label for="interestRate">Interest Rate (Annual %)</label>
+        <input type="number" id="interestRate" class="w-full" value="10" />
+      </div>
+      <div class="mb-4">
+        <label for="sellingCostPercent">Selling Costs (% of Sale Price)</label>
+        <input type="number" id="sellingCostPercent" class="w-full" value="6" />
+      </div>
+      <div class="mb-4">
+        <label for="arv">After Repair Value (ARV) ($)</label>
+        <input type="number" id="arv" class="w-full" value="300000" />
+      </div>
+      <button id="calculateBtn" class="bg-blue-600 text-white w-full p-2 rounded-md">Analyze Deal</button>
+    </div>
+
+    <div class="output-section">
+      <h2 class="text-2xl font-bold mb-4 text-center">Deal Analysis</h2>
+      <div class="space-y-2">
+        <div>Total Investment: <span id="totalInvestment">$0.00</span></div>
+        <div>Estimated Gross Profit: <span id="grossProfit">$0.00</span></div>
+        <div>Estimated Net Profit: <span id="netProfit">$0.00</span></div>
+        <div>Return on Investment (ROI): <span id="roi">0.00%</span></div>
+      </div>
+      <div class="mt-6 p-4 bg-blue-50 dark:bg-blue-900 rounded-md">
+        <h3 class="font-bold text-lg">Deal Recommendation:</h3>
+        <p id="dealRecommendation">Enter values and click "Analyze Deal".</p>
+      </div>
+      <div class="mt-6 p-4 text-sm text-gray-500 dark:text-gray-300 border-t">
+        <div id="breakdown"></div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    const ids = ['purchasePrice', 'rehabCost', 'holdingCost', 'holdingMonths', 'loanAmount', 'interestRate', 'sellingCostPercent', 'arv'];
+    const el = {};
+    ids.forEach(id => el[id] = document.getElementById(id));
+
+    const spans = {
+      totalInvestment: document.getElementById('totalInvestment'),
+      grossProfit: document.getElementById('grossProfit'),
+      netProfit: document.getElementById('netProfit'),
+      roi: document.getElementById('roi'),
+      recommendation: document.getElementById('dealRecommendation'),
+      breakdown: document.getElementById('breakdown')
+    };
+
+    const formatCurrency = num => num.toLocaleString('en-US', { style: 'currency', currency: 'USD' });
+    const formatPercentage = num => (num * 100).toFixed(2) + '%';
+
+    function calculate() {
+      const purchasePrice = parseFloat(el.purchasePrice.value) || 0;
+      const rehab = parseFloat(el.rehabCost.value) || 0;
+      const holdPerMonth = parseFloat(el.holdingCost.value) || 0;
+      const months = parseFloat(el.holdingMonths.value) || 0;
+      const arv = parseFloat(el.arv.value) || 0;
+      const sellPct = (parseFloat(el.sellingCostPercent.value) || 0) / 100;
+      const loan = parseFloat(el.loanAmount.value) || 0;
+      const interestRate = (parseFloat(el.interestRate.value) || 0) / 100;
+
+      const totalHold = holdPerMonth * months;
+      const interestCost = loan * (interestRate / 12) * months;
+      const totalInvestment = purchasePrice + rehab + totalHold + interestCost;
+      const sellCost = arv * sellPct;
+      const grossProfit = arv - purchasePrice - rehab - totalHold;
+      const netProfit = grossProfit - interestCost - sellCost;
+      const roi = totalInvestment > 0 ? netProfit / totalInvestment : 0;
+
+      spans.totalInvestment.textContent = formatCurrency(totalInvestment);
+      spans.grossProfit.textContent = formatCurrency(grossProfit);
+      spans.netProfit.textContent = formatCurrency(netProfit);
+      spans.roi.textContent = formatPercentage(roi);
+
+      spans.recommendation.className = 'font-semibold';
+      if (roi >= 0.2) {
+        spans.recommendation.textContent = 'Excellent Deal!';
+        spans.roi.className = 'text-green-700';
+      } else if (roi >= 0.1) {
+        spans.recommendation.textContent = 'Good Deal.';
+        spans.roi.className = 'text-blue-700';
+      } else if (roi > 0) {
+        spans.recommendation.textContent = 'Marginal Deal.';
+        spans.roi.className = 'text-orange-600';
+      } else {
+        spans.recommendation.textContent = 'Poor Deal!';
+        spans.roi.className = 'text-red-600';
+      }
+
+      spans.netProfit.className = netProfit >= 0 ? 'text-green-700' : 'text-red-600';
+
+      spans.breakdown.innerHTML = `
+        <p>Purchase Price: ${formatCurrency(purchasePrice)}</p>
+        <p>Rehab Cost: ${formatCurrency(rehab)}</p>
+        <p>Holding Costs (${months} x ${formatCurrency(holdPerMonth)}): ${formatCurrency(totalHold)}</p>
+        <p>Financing Cost: ${formatCurrency(interestCost)}</p>
+        <p>Selling Cost (${(sellPct*100).toFixed(2)}% of ARV): ${formatCurrency(sellCost)}</p>
+      `;
+
+      const inputData = {};
+      ids.forEach(id => inputData[id] = el[id].value);
+      localStorage.setItem('flipCalcInputs', JSON.stringify(inputData));
+    }
+
+    document.getElementById('calculateBtn').addEventListener('click', calculate);
+    ids.forEach(id => el[id].addEventListener('input', calculate));
+    document.addEventListener('DOMContentLoaded', () => {
+      const saved = JSON.parse(localStorage.getItem('flipCalcInputs'));
+      if (saved) {
+        ids.forEach(id => el[id].value = saved[id]);
+      }
+      calculate();
+    });
+
+    document.getElementById('darkToggle').addEventListener('click', () => {
+      document.documentElement.classList.toggle('dark');
+    });
+  </script>
+</body>
+</html>
